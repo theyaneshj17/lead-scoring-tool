@@ -147,13 +147,21 @@
             <h3>Instructions</h3>
             <p>To score a lead, please provide the following:</p>
             <ul>
-                
+                <li><strong>Webhook URL:</strong> The URL of your n8n webhook that processes the lead scoring.</li>
                 <li><strong>Contact Email:</strong> The email address of the contact you want to score.</li>
             </ul>
-            <p>Ensure that the contact exists in HubSpot and that the n8n workflow is active.</p>
+            <p>Ensure your n8n workflow is active and properly configured to handle incoming requests.</p>
+
         </div>
+
+ 
         
         <form id="leadForm">
+
+            <div class="form-group">
+                <label for="webhookUrl">n8n Webhook URL:</label>
+                <input type="url" id="webhookUrl" placeholder="https://your-n8n-instance.com/webhook/your-workflow" required>
+            </div>
             
             <div class="form-group">
                 <label for="email">Contact Email:</label>
