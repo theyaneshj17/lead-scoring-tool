@@ -248,8 +248,21 @@
         // Auto-fill test data for demo
         window.addEventListener('load', function() {
             const emailField = document.getElementById('email');
+            if (!emailField.value) {
+                emailField.value = 'theyaneshj17@gmail.com';
+            }
           
         });
+
+        
+        window.addEventListener('load', function() {
+            const webhookField = document.getElementById('webhookUrl');
+            if (!webhookField.value) {
+                webhookField.value = 'https://theyaneshj17.app.n8n.cloud/webhook/3d1fc6e7-33ff-4efe-8424-3b98a13b7f62';
+            }
+        });
+
+
     </script>
 </body>
 </html>
