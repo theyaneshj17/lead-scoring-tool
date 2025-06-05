@@ -45,6 +45,7 @@
             border-radius: 8px;
             font-size: 16px;
             transition: border-color 0.3s;
+            box-sizing: border-box;
         }
         
         input[type="email"]:focus, input[type="url"]:focus {
@@ -111,6 +112,7 @@
             border-radius: 20px;
             font-weight: bold;
             margin-left: 10px;
+            font-size: 16px;
         }
         
         .priority-high { background: #d4edda; color: #155724; }
@@ -182,6 +184,45 @@
             margin-top: 0;
             color: #1976d2;
         }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #f3f3f3;
+            border-radius: 3px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .debug-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
+        .debug-info summary {
+            cursor: pointer;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .debug-info pre {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -195,7 +236,7 @@
                 <li><strong>Webhook URL:</strong> The URL of your n8n webhook that processes the lead scoring.</li>
                 <li><strong>Contact Email:</strong> The email address of the contact you want to score.</li>
             </ul>
-            <p>Ensure your n8n workflow is active and properly configured to handle incoming requests.</p>
+            <p><strong>Note:</strong> The scoring process may take 15-30 seconds as it fetches data from multiple APIs.</p>
         </div>
         
         <form id="leadForm">
@@ -214,7 +255,10 @@
         
         <div id="loading" class="loading" style="display: none;">
             <div class="spinner"></div>
-            <p>Scoring lead...</p>
+            <p id="loadingText">Starting lead scoring process...</p>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
         </div>
         
         <div id="result" class="result">
@@ -224,9 +268,17 @@
 
     <script>
         function getPriorityClass(ranking) {
-            if (ranking.includes('High')) return 'priority-high';
-            if (ranking.includes('Medium')) return 'priority-medium';
+            if (ranking && ranking.includes('High')) return 'priority-high';
+            if (ranking && ranking.includes('Medium')) return 'priority-medium';
             return 'priority-low';
+        }
+
+        function updateProgress(percentage, message) {
+            const progressFill = document.getElementById('progressFill');
+            const loadingText = document.getElementById('loadingText');
+            
+            if (progressFill) progressFill.style.width = percentage + '%';
+            if (loadingText) loadingText.textContent = message;
         }
 
         document.getElementById('leadForm').addEventListener('submit', async function(e) {
@@ -244,20 +296,68 @@
             loading.style.display = 'block';
             result.style.display = 'none';
             
+            // Progress simulation
+            updateProgress(10, 'Connecting to n8n workflow...');
+            
+            const progressTimer = setTimeout(() => {
+                updateProgress(30, 'Fetching contact data from HubSpot...');
+            }, 2000);
+            
+            const progressTimer2 = setTimeout(() => {
+                updateProgress(50, 'Getting company information...');
+            }, 5000);
+            
+            const progressTimer3 = setTimeout(() => {
+                updateProgress(70, 'Analyzing job market data...');
+            }, 8000);
+            
+            const progressTimer4 = setTimeout(() => {
+                updateProgress(90, 'Calculating lead score...');
+            }, 12000);
+            
+            // Set up abort controller with longer timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+            }, 45000); // 45 second timeout
+            
             try {
                 const response = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ email: email })
+                    body: JSON.stringify({ email: email }),
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
+                clearTimeout(progressTimer);
+                clearTimeout(progressTimer2);
+                clearTimeout(progressTimer3);
+                clearTimeout(progressTimer4);
+                
+                updateProgress(100, 'Processing complete!');
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const data = await response.json();
+                console.log('Response data:', data); // Debug log
+                
+                // Handle different response formats
+                let finalData = data;
+                
+                // If data is wrapped in an array or has nested structure
+                if (Array.isArray(data) && data.length > 0) {
+                    finalData = data[0];
+                }
+                
+                // If data is nested in a json property
+                if (data.json) {
+                    finalData = data.json;
+                }
                 
                 // Display formatted lead scoring result
                 result.className = 'result success';
@@ -265,50 +365,75 @@
                     <h3>✅ Lead Scored Successfully!</h3>
                     
                     <div class="score-display">
-                        Score: ${data.finalScore}/${data.maxPossibleScore}
-                        <span class="priority-badge ${getPriorityClass(data.ranking)}">${data.ranking}</span>
+                        Score: ${finalData.finalScore || 'N/A'}/${finalData.maxPossibleScore || '6'}
+                        <span class="priority-badge ${getPriorityClass(finalData.ranking)}">${finalData.ranking || 'Unknown'}</span>
                     </div>
                     
                     <div class="contact-info">
                         <h4>👤 Contact Information</h4>
-                        <p><strong>Name:</strong> ${data.name}</p>
-                        <p><strong>Email:</strong> ${data.email}</p>
-                        <p><strong>Job Title:</strong> ${data.jobTitle}</p>
-                        <p><strong>Lifecycle Stage:</strong> ${data.lifecycleStage}</p>
-                        <p><strong>Last Activity:</strong> ${data.lastActivity}</p>
+                        <p><strong>Name:</strong> ${finalData.name || 'Not provided'}</p>
+                        <p><strong>Email:</strong> ${email}</p>
+                        <p><strong>Job Title:</strong> ${finalData.jobTitle || 'Not provided'}</p>
+                        <p><strong>Lifecycle Stage:</strong> ${finalData.lifecycleStage || 'Unknown'}</p>
+                        <p><strong>Last Activity:</strong> ${finalData.lastActivity || 'Not available'}</p>
                     </div>
                     
                     <div class="company-info">
                         <h4>🏢 Company Information</h4>
-                        <p><strong>Company:</strong> ${data.company.name}</p>
-                        <p><strong>Size:</strong> ${data.company.size} employees</p>
-                        <p><strong>Industry:</strong> ${data.company.industry}</p>
-                        <p><strong>Open Roles:</strong> ${data.company.numberOfOpenRoles.toLocaleString()}</p>
+                        <p><strong>Company:</strong> ${finalData.company?.name || 'Unknown'}</p>
+                        <p><strong>Size:</strong> ${finalData.company?.size || 'Unknown'} employees</p>
+                        <p><strong>Industry:</strong> ${finalData.company?.industry || 'Unknown'}</p>
+                        <p><strong>Open Roles:</strong> ${finalData.company?.numberOfOpenRoles ? finalData.company.numberOfOpenRoles.toLocaleString() : 'Unknown'}</p>
                     </div>
                     
                     <div class="score-breakdown">
                         <h4>📊 Score Breakdown</h4>
-                        ${data.scoreBreakdown.map(item => `<div class="score-item">${item}</div>`).join('')}
+                        ${finalData.scoreBreakdown && finalData.scoreBreakdown.length > 0 
+                            ? finalData.scoreBreakdown.map(item => `<div class="score-item">${item}</div>`).join('') 
+                            : '<div class="score-item">No scoring details available</div>'}
                     </div>
                     
-                    <p><strong>Summary:</strong> ${data.summary}</p>
-                    <p><em>${data.explanation}</em></p>
+                    <p><strong>Summary:</strong> ${finalData.summary || 'No summary available'}</p>
+                    <p><em>${finalData.explanation || 'No explanation available'}</em></p>
+                    
+                    ${finalData.debug ? `
+                        <div class="debug-info">
+                            <details>
+                                <summary>🔍 Debug Information</summary>
+                                <pre>${JSON.stringify(finalData.debug, null, 2)}</pre>
+                            </details>
+                        </div>
+                    ` : ''}
                 `;
                 result.style.display = 'block';
                 
             } catch (error) {
+                clearTimeout(timeoutId);
+                clearTimeout(progressTimer);
+                clearTimeout(progressTimer2);
+                clearTimeout(progressTimer3);
+                clearTimeout(progressTimer4);
+                
+                let errorMessage = error.message;
+                if (error.name === 'AbortError') {
+                    errorMessage = 'Request timed out. The workflow is taking longer than expected (45+ seconds).';
+                }
+                
                 // Display error result
                 result.className = 'result error';
                 resultContent.innerHTML = `
                     <h3>❌ Error Scoring Lead</h3>
-                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>Error:</strong> ${errorMessage}</p>
+                    <p><strong>Contact Email:</strong> ${email}</p>
                     <p>Please check:</p>
                     <ul>
-                        <li>Webhook URL is correct</li>
-                        <li>n8n workflow is active</li>
-                        <li>Contact exists in HubSpot</li>
-                        <li>Network connection</li>
+                        <li>Webhook URL is correct and active</li>
+                        <li>n8n workflow is published and running</li>
+                        <li>Contact exists in HubSpot CRM</li>
+                        <li>All API connections are working</li>
+                        <li>Network connection is stable</li>
                     </ul>
+                    <p><small>Workflow typically takes 15-30 seconds to complete.</small></p>
                 `;
                 result.style.display = 'block';
             } finally {
