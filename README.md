@@ -44,14 +44,6 @@ The workflow performs the following steps:
 
 ## 📊 Sample Results
 
-### ✅ Andrew Witty (VP, Netflix)
-- Score: **6/6** – High Priority
-- ![score1_vp](./score1_vp.png)
-
-### ✅ Samson Stubbs (Director, UnitedHealth Group)
-- Score: **5/6** – High Priority
-- ![score2_dir](./score2_dir.png)
-
 ### ⚠️ Theyaneshwaran Jayaprakash (Intern, Google)
 - Score: **2/6** – Medium Priority
 - ![score3_lead](./score3_lead.png)
@@ -87,4 +79,7 @@ The workflow performs the following steps:
 
 Created by Theyaneshwaran Jayaprakash \
 ✉️ [theyaneshj17@gmail.com](mailto:theyaneshj17@gmail.com)
+
+⚠️ **Disclaimer**: All contact and company records shown in this project are dummy/test data used solely for demonstration purposes. No real personal or proprietary information is stored or shared.
+
 
