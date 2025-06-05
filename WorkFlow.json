@@ -1,0 +1,343 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3d1fc6e7-33ff-4efe-8424-3b98a13b7f62",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        -40
+      ],
+      "id": "7d981b5c-59ed-4efa-acef-a1ca0512cabe",
+      "name": "Email Trigger",
+      "webhookId": "3d1fc6e7-33ff-4efe-8424-3b98a13b7f62"
+    },
+    {
+      "parameters": {
+        "url": "https://company.bigpicture.io/v2/companies/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{ $json.company }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "7kuGL9HLnvWviWyMnmJcfq:6qeoPOnEfDT7UNulb6BB3T"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        340,
+        -40
+      ],
+      "id": "b16f0415-813c-4c56-a8e6-1d9b87ed912b",
+      "name": "Get Company Domain (Bigpicture API)"
+    },
+    {
+      "parameters": {
+        "url": "https://company.bigpicture.io/v1/companies/find",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $json.data[0].domain }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "7kuGL9HLnvWviWyMnmJcfq:6qeoPOnEfDT7UNulb6BB3T"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        -140
+      ],
+      "id": "87bd401b-719f-44f4-915d-b9c5912e46c1",
+      "name": "Get Company Details (Bigpicture API)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mcp.pipedream.net/72f86264-0d2e-48d9-a8a9-b8568b8bea5f/hubspot",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json, text/event-stream"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"method\": \"tools/call\",\n    \"params\": {\n        \"name\": \"HUBSPOT-SEARCH-CRM\",\n        \"arguments\": {\n            \"instruction\": \"Search contacts where email equals {{ $json.body.email }} and return firstname, lastname, company, jobtitle, lifecyclestage, Last Contact date properties\"\n        }\n    }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -100,
+        -40
+      ],
+      "id": "378a490e-70db-411b-8881-509afde6ecab",
+      "name": "Get Contact Details       (MCP Pipedream-> Hubspot)",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "url": "https://api.adzuna.com/v1/api/jobs/us/search/1",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "app_id",
+              "value": "=e5e23a35"
+            },
+            {
+              "name": "app_key",
+              "value": "b5d930f8418763547eb6710162f14f50"
+            },
+            {
+              "name": "company",
+              "value": "={{ $json.data[0].name }}"
+            },
+            {
+              "name": "results_per_page",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        60
+      ],
+      "id": "e6fc0e16-994a-4dd6-a3d7-9726a29e94e2",
+      "name": "Get Open Roles (Adzuna API)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get contact data from the MCP response\nconst rawData = $input.first().json.data;\n\n// Parse the event stream data\nlet dataLine;\n\n// Method 1: Split by literal \\n\nif (rawData.includes('\\\\n')) {\n  const lines = rawData.split('\\\\n');\n  dataLine = lines.find(line => line.startsWith('data: '));\n}\n\n// Method 2: Split by actual newlines  \nif (!dataLine && rawData.includes('\\n')) {\n  const lines = rawData.split('\\n');\n  dataLine = lines.find(line => line.startsWith('data: '));\n}\n\n// Method 3: Direct search for \"data: {\"\nif (!dataLine) {\n  const dataIndex = rawData.indexOf('data: {');\n  if (dataIndex !== -1) {\n    dataLine = rawData.substring(dataIndex);\n  }\n}\n\nif (dataLine) {\n  const jsonString = dataLine.replace('data: ', '');\n  const parsed = JSON.parse(jsonString);\n  const text = parsed.result.content[0].text;\n  \n  // Extract all contact information using regex\n  const firstNameMatch = text.match(/- First Name:\\s*([^\\n\\r]+)/);\n  const lastNameMatch = text.match(/- Last Name:\\s*([^\\n\\r]+)/);\n  const companyMatch = text.match(/- Company:\\s*([^\\n\\r]+)/);\n  const jobTitleMatch = text.match(/- Job Title:\\s*([^\\n\\r]+)/);\n  const lifecycleMatch = text.match(/- Lifecycle Stage:\\s*([^\\n\\r]+)/);\n  const lastContactMatch = text.match(/- Last Contact Date:\\s*([^\\n\\r]+)/);\n  \n  // Clean and extract values\n  const firstName = firstNameMatch ? firstNameMatch[1].trim() : '';\n  const lastName = lastNameMatch ? lastNameMatch[1].trim() : '';\n  const company = companyMatch ? companyMatch[1].trim() : '';\n  let jobTitle = jobTitleMatch ? jobTitleMatch[1].trim() : '';\n  const lifecycleStage = lifecycleMatch ? lifecycleMatch[1].trim() : '';\n  let lastContactDate = lastContactMatch ? lastContactMatch[1].trim() : '';\n  \n  // Handle \"not provided\" cases\n  if (jobTitle.toLowerCase().includes('not provided')) {\n    jobTitle = '';\n  }\n  \n  if (lastContactDate.toLowerCase().includes('not provided') || \n      lastContactDate.toLowerCase().includes('not available')) {\n    lastContactDate = '';\n  }\n  \n  // Format the last contact date (optional - convert to more readable format)\n  let formattedLastContact = lastContactDate;\n  if (lastContactDate) {\n    try {\n      // Try to parse and format the date\n      const date = new Date(lastContactDate);\n      if (!isNaN(date.getTime())) {\n        formattedLastContact = date.toLocaleDateString('en-US', {\n          year: 'numeric',\n          month: 'long',\n          day: 'numeric'\n        });\n      }\n    } catch (e) {\n      // Keep original format if parsing fails\n      formattedLastContact = lastContactDate;\n    }\n  }\n  \n  return {\n    firstName: firstName,\n    lastName: lastName,\n    company: company,\n    jobTitle: jobTitle,\n    lifecycleStage: lifecycleStage,\n    lastContactDate: lastContactDate, // Raw date format\n    lastContactDateFormatted: formattedLastContact, // Formatted date\n    lastActivity: formattedLastContact || 'Not available', // For compatibility with your scoring logic\n    fullName: `${firstName} ${lastName}`.trim()\n  };\n}\n\nreturn {\n  error: \"Could not parse data\", \n  rawData: rawData\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        -40
+      ],
+      "id": "99186990-e59a-4e56-8d8c-3b2aaab4a169",
+      "name": "Parse Contact Details"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get company data from BigPicture API\nconst companyData = $input.first().json;\n\n// Function to convert size strings like '10K+', '5M' to actual numbers\nfunction convertSizeToNumber(sizeStr) {\n  if (!sizeStr) return 0;\n  \n  // Remove spaces and convert to uppercase\n  const cleanStr = sizeStr.replace(/\\s+/g, '').toUpperCase().replace('+', '');\n  \n  // Handle range formats like \"1K-5K\" - take the upper bound\n  let processStr = cleanStr;\n  if (cleanStr.includes('-')) {\n    processStr = cleanStr.split('-')[1];\n  }\n  \n  // Extract number and multiplier using regex\n  const match = processStr.match(/(\\d+(?:\\.\\d+)?)(K|M|B)?/);\n  if (!match) return 0;\n  \n  const number = parseFloat(match[1]);\n  const multiplier = match[2];\n  \n  if (multiplier === 'K') {\n    return Math.floor(number * 1000);\n  } else if (multiplier === 'M') {\n    return Math.floor(number * 1000000);\n  } else if (multiplier === 'B') {\n    return Math.floor(number * 1000000000);\n  } else {\n    return Math.floor(number);\n  }\n}\n\n// Extract required company details\nconst companyName = companyData.name || '';\nconst employeesRange = companyData.metrics?.employeesRange || '';\nconst employeesNumeric = convertSizeToNumber(employeesRange);\nconst industry = companyData.category?.industry || '';\nconst sector = companyData.category?.sector || '';\nconst revenue = companyData.metrics?.estimatedAnnualRevenue || '';\n\n// Return parsed company data\nreturn {\n  companyName: companyName,\n  employeesRange: employeesRange,\n  employeesNumeric: employeesNumeric,\n  industry: industry,\n  sector: sector,\n  revenue: revenue,\n  companyType: companyData.type || '',\n  foundedYear: companyData.foundedYear || null,\n  domain: companyData.domain || '',\n  \n  \n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        -140
+      ],
+      "id": "185b380a-842c-4cb1-91ae-9945dbe9919d",
+      "name": "Parse Company Details"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contact variables (with null/undefined safety)\nconst fullName = $('Parse Contact Details').first().json.fullName || '';\nconst jobTitle = $('Parse Contact Details').first().json.jobTitle || '';\nconst lifecycleStage = $('Parse Contact Details').first().json.lifecycleStage || '';\nconst company = $('Parse Contact Details').first().json.company || '';\nconst lastContactDate = $('Parse Contact Details').first().json.lastContactDate || '';\nconst lastActivity = $('Parse Contact Details').first().json.lastActivity || 'Not available';\n\n// Company variables (from Parse Company Details node)\nconst companyName = $('Parse Company Details').first().json.companyName || '';\nconst size = $('Parse Company Details').first().json.employeesNumeric || 0;\nconst industry = $('Parse Company Details').first().json.industry || '';\n\n// Job data (from Get Open Roles node)\nconst openRolesCount = $('Get Open Roles (Adzuna API)').first().json.count || 0;\n\n// Helper function to check if date is within past 7 days\nfunction isWithinPast7Days(dateString) {\n    if (!dateString) return false;\n    \n    try {\n        const contactDate = new Date(dateString);\n        const today = new Date();\n        const sevenDaysAgo = new Date(today.getTime() - (7 * 24 * 60 * 60 * 1000));\n        \n        // Check if the date is valid and within the last 7 days\n        return !isNaN(contactDate.getTime()) && contactDate >= sevenDaysAgo && contactDate <= today;\n    } catch (error) {\n        return false;\n    }\n}\n\n// Initialize scoring\nlet score = 0;\nconst scoreBreakdown = [];\n\n// SCORING LOGIC with null/undefined checks:\n\n// 1. +3 if title includes \"VP\" or \"Director\"\nif (jobTitle && typeof jobTitle === 'string') {\n    const jobTitleLower = jobTitle.toLowerCase();\n    const titleWords = jobTitleLower.split(' ');\n    \n    const vpWords = ['vp'];\n    const hasVp = vpWords.some(word => titleWords.includes(word)) || jobTitleLower.includes('vice president');\n    const hasDirector = titleWords.includes('director');\n    \n    if (hasVp) {\n        score += 3;\n        scoreBreakdown.push(\"+3: Title includes VP\");\n    } else if (hasDirector) {\n        score += 3;\n        scoreBreakdown.push(\"+3: Title includes Director\");\n    }\n}\n\n// 2. +2 if company size > 100\nif (size && typeof size === 'number' && size > 100) {\n    score += 2;\n    scoreBreakdown.push(`+2: Company size > 100 (${size.toLocaleString()} employees)`);\n}\n\n// 3. +1 if last contact date is within the past 7 days\nif (isWithinPast7Days(lastContactDate)) {\n    score += 1;\n    scoreBreakdown.push(\"+1: Recent contact (within 7 days)\");\n}\n\n// 4. -1 if lifecycle stage is still \"Lead\"\nif (lifecycleStage && typeof lifecycleStage === 'string' && lifecycleStage.toLowerCase() === 'lead') {\n    score -= 1;\n    scoreBreakdown.push(\"-1: Lifecycle stage is Lead\");\n}\n\n// Calculate ranking (updated max possible score to 7)\nlet ranking;\nif (score >= 5) {\n    ranking = \"High Priority\";\n} else if (score >= 2) {\n    ranking = \"Medium Priority\";\n} else if (score >= 0) {\n    ranking = \"Low Priority\";\n} else {\n    ranking = \"Very Low Priority\";\n}\n\n// Create explanation\nconst explanation = `Lead scored ${score}/7 points. ${scoreBreakdown.join(' | ')}`;\n\n// Create summary\nconst summary = `${fullName} at ${companyName} scored ${score}/7 points - ${ranking}`;\n\n// Get email safely\nlet email = \"Not provided\";\ntry {\n    email = $('Email Trigger').first().json.body.email || \"Not provided\";\n} catch (e) {\n    email = \"Not provided\";\n}\n\n// Output final result\nreturn {\n    name: fullName || \"Unknown\",\n    email: email,\n    jobTitle: jobTitle || \"Not provided\",\n    lastContactDate: lastContactDate,\n    lifecycleStage: lifecycleStage || \"Unknown\",\n    \n    company: {\n        name: companyName || \"Unknown\",\n        size: size ? size.toLocaleString() : \"Unknown\",\n        sizeNumeric: size || 0,\n        numberOfOpenRoles: openRolesCount || 0,\n        industry: industry || \"Unknown\"\n    },\n    \n    finalScore: score,\n    maxPossibleScore: 6, // Updated from 6 to 7\n    ranking: ranking,\n    scoreBreakdown: scoreBreakdown.length > 0 ? scoreBreakdown : [\"No scoring criteria met\"],\n    explanation: explanation,\n    summary: summary\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        -40
+      ],
+      "id": "9f8a0933-2ffb-40b1-b4c7-075d095adc65",
+      "name": "Scoring Logic"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [
+        1440,
+        -40
+      ],
+      "id": "e2e50723-9983-49b0-95d7-9f5b2b243dff",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1000,
+        -40
+      ],
+      "id": "e5fe76b4-b6ad-4808-8abc-7a32290ddc3c",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Email Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Contact Details       (MCP Pipedream-> Hubspot)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Domain (Bigpicture API)": {
+      "main": [
+        [
+          {
+            "node": "Get Company Details (Bigpicture API)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Open Roles (Adzuna API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact Details       (MCP Pipedream-> Hubspot)": {
+      "main": [
+        [
+          {
+            "node": "Parse Contact Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Open Roles (Adzuna API)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Company Details (Bigpicture API)": {
+      "main": [
+        [
+          {
+            "node": "Parse Company Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Contact Details": {
+      "main": [
+        [
+          {
+            "node": "Get Company Domain (Bigpicture API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Company Details": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scoring Logic": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Scoring Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1347f60f-a2dd-46b3-803f-1142789d4b41",
+  "meta": {
+    "instanceId": "716cd5de079a0e9a1d115ffe7b20a2980e36d2bfffbff969b30aa8e862ad4119"
+  },
+  "id": "EhzENLbkB22HgIXG",
+  "tags": []
+}
