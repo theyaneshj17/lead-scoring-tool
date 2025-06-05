@@ -42,13 +42,6 @@ The workflow performs the following steps:
 
 ---
 
-## 📊 Sample Results
-
-### ⚠️ Theyaneshwaran Jayaprakash (Intern, Google)
-- Score: **2/6** – Medium Priority
-- ![score3_lead](./score3_lead.png)
-
----
 
 ## 🛠️ Files in This Repository
 
