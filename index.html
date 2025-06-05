@@ -346,25 +346,29 @@
             const data = await response.json();
             console.log('Full response data:', data); // Debug log
             
-            // Handle n8n response structure - n8n often wraps responses
-            let finalData = data;
+            // Handle n8n response structure - FIXED LOGIC HERE
+            let finalData = null;
             
-            // Check if it's an n8n array response
+            // Check if it's an array response (n8n often returns arrays)
             if (Array.isArray(data) && data.length > 0) {
-                // n8n returns array of items, get the last one (final result)
-                finalData = data[data.length - 1];
+                // Get the first item from the array
+                finalData = data[0];
                 console.log('Using array item:', finalData);
+            } else if (data && typeof data === 'object') {
+                // If it's already an object, use it directly
+                finalData = data;
+                console.log('Using direct object:', finalData);
             }
             
             // Check if data is nested in json property
-            if (finalData && finalData.json) {
+            if (finalData && finalData.json && typeof finalData.json === 'object') {
                 finalData = finalData.json;
                 console.log('Using nested json:', finalData);
             }
             
-            // If still no proper structure, try to find the scoring data
-            if (!finalData.finalScore && data.finalScore) {
-                finalData = data;
+            // Validate that we have the required data
+            if (!finalData || typeof finalData !== 'object') {
+                throw new Error('Invalid response format from webhook');
             }
             
             console.log('Final processed data:', finalData);
@@ -382,7 +386,7 @@
                 <div class="contact-info">
                     <h4>👤 Contact Information</h4>
                     <p><strong>Name:</strong> ${finalData.name || 'Not provided'}</p>
-                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>Email:</strong> ${finalData.email || email}</p>
                     <p><strong>Job Title:</strong> ${finalData.jobTitle || 'Not provided'}</p>
                     <p><strong>Lifecycle Stage:</strong> ${finalData.lifecycleStage || 'Unknown'}</p>
                     <p><strong>Last Activity:</strong> ${finalData.lastActivity || 'Not available'}</p>
@@ -391,14 +395,14 @@
                 <div class="company-info">
                     <h4>🏢 Company Information</h4>
                     <p><strong>Company:</strong> ${finalData.company?.name || finalData.companyName || 'Unknown'}</p>
-                    <p><strong>Size:</strong> ${finalData.company?.size || 'Unknown'} employees</p>
+                    <p><strong>Size:</strong> ${finalData.company?.size || finalData.company?.sizeNumeric || 'Unknown'} employees</p>
                     <p><strong>Industry:</strong> ${finalData.company?.industry || 'Unknown'}</p>
                     <p><strong>Open Roles:</strong> ${finalData.company?.numberOfOpenRoles ? finalData.company.numberOfOpenRoles.toLocaleString() : 'Unknown'}</p>
                 </div>
                 
                 <div class="score-breakdown">
                     <h4>📊 Score Breakdown</h4>
-                    ${finalData.scoreBreakdown && finalData.scoreBreakdown.length > 0 
+                    ${finalData.scoreBreakdown && Array.isArray(finalData.scoreBreakdown) && finalData.scoreBreakdown.length > 0 
                         ? finalData.scoreBreakdown.map(item => `<div class="score-item">${item}</div>`).join('') 
                         : '<div class="score-item">No scoring details available</div>'}
                 </div>
