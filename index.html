@@ -7,7 +7,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 600px;
+            max-width: 700px;
             margin: 50px auto;
             padding: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -95,14 +95,59 @@
         }
         
         .score-display {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
-            margin: 10px 0;
+            margin: 15px 0;
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 5px solid #28a745;
         }
         
-        .reasoning {
-            margin-top: 15px;
-            font-style: italic;
+        .priority-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .priority-high { background: #d4edda; color: #155724; }
+        .priority-medium { background: #fff3cd; color: #856404; }
+        .priority-low { background: #f8d7da; color: #721c24; }
+        
+        .contact-info, .company-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .contact-info h4, .company-info h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        
+        .score-breakdown {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .score-breakdown h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        
+        .score-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .score-item:last-child {
+            border-bottom: none;
         }
         
         .loading {
@@ -151,13 +196,9 @@
                 <li><strong>Contact Email:</strong> The email address of the contact you want to score.</li>
             </ul>
             <p>Ensure your n8n workflow is active and properly configured to handle incoming requests.</p>
-
         </div>
-
- 
         
         <form id="leadForm">
-
             <div class="form-group">
                 <label for="webhookUrl">n8n Webhook URL:</label>
                 <input type="url" id="webhookUrl" placeholder="https://your-n8n-instance.com/webhook/your-workflow" required>
@@ -182,6 +223,12 @@
     </div>
 
     <script>
+        function getPriorityClass(ranking) {
+            if (ranking.includes('High')) return 'priority-high';
+            if (ranking.includes('Medium')) return 'priority-medium';
+            return 'priority-low';
+        }
+
         document.getElementById('leadForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -212,14 +259,40 @@
                 
                 const data = await response.json();
                 
-                // Display success result
+                // Display formatted lead scoring result
                 result.className = 'result success';
                 resultContent.innerHTML = `
                     <h3>✅ Lead Scored Successfully!</h3>
-                    <div class="score-display">Score: ${data.score || 'N/A'}</div>
-                    <p><strong>Contact:</strong> ${email}</p>
-                    ${data.reasoning ? `<div class="reasoning">${data.reasoning}</div>` : ''}
-                    ${data.details ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+                    
+                    <div class="score-display">
+                        Score: ${data.finalScore}/${data.maxPossibleScore}
+                        <span class="priority-badge ${getPriorityClass(data.ranking)}">${data.ranking}</span>
+                    </div>
+                    
+                    <div class="contact-info">
+                        <h4>👤 Contact Information</h4>
+                        <p><strong>Name:</strong> ${data.name}</p>
+                        <p><strong>Email:</strong> ${data.email}</p>
+                        <p><strong>Job Title:</strong> ${data.jobTitle}</p>
+                        <p><strong>Lifecycle Stage:</strong> ${data.lifecycleStage}</p>
+                        <p><strong>Last Activity:</strong> ${data.lastActivity}</p>
+                    </div>
+                    
+                    <div class="company-info">
+                        <h4>🏢 Company Information</h4>
+                        <p><strong>Company:</strong> ${data.company.name}</p>
+                        <p><strong>Size:</strong> ${data.company.size} employees</p>
+                        <p><strong>Industry:</strong> ${data.company.industry}</p>
+                        <p><strong>Open Roles:</strong> ${data.company.numberOfOpenRoles.toLocaleString()}</p>
+                    </div>
+                    
+                    <div class="score-breakdown">
+                        <h4>📊 Score Breakdown</h4>
+                        ${data.scoreBreakdown.map(item => `<div class="score-item">${item}</div>`).join('')}
+                    </div>
+                    
+                    <p><strong>Summary:</strong> ${data.summary}</p>
+                    <p><em>${data.explanation}</em></p>
                 `;
                 result.style.display = 'block';
                 
@@ -248,21 +321,16 @@
         // Auto-fill test data for demo
         window.addEventListener('load', function() {
             const emailField = document.getElementById('email');
+            const webhookField = document.getElementById('webhookUrl');
+            
             if (!emailField.value) {
                 emailField.value = 'theyaneshj17@gmail.com';
             }
-          
-        });
-
-        
-        window.addEventListener('load', function() {
-            const webhookField = document.getElementById('webhookUrl');
+            
             if (!webhookField.value) {
                 webhookField.value = 'https://theyaneshj17.app.n8n.cloud/webhook/3d1fc6e7-33ff-4efe-8424-3b98a13b7f62';
             }
         });
-
-
     </script>
 </body>
 </html>
